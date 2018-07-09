@@ -1,4 +1,5 @@
 README.md
+piTalk.py
 setup.cfg
 setup.py
 piTalk.egg-info/PKG-INFO
