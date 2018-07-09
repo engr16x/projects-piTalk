@@ -1,6 +1,5 @@
 README.md
 piTalk.py
-setup.cfg
 setup.py
 piTalk.egg-info/PKG-INFO
 piTalk.egg-info/SOURCES.txt
