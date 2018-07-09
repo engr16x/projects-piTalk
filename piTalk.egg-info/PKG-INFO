@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: piTalk
+Version: 1.0.0
+Summary: Allows a Raspberry Pi to send/stream data to a client.
+Home-page: https://github.com/trevordmeyer/piTalk
+Author: Trevor Meyer
+Author-email: mail2trevorm@gmail.com
+License: UNKNOWN
+Description: # piTalk
+        Files for Raspberry Pi to stream Data
+Platform: UNKNOWN
+Description-Content-Type: text/markdown

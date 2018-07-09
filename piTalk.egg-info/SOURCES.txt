@@ -1,0 +1,7 @@
+README.md
+setup.cfg
+setup.py
+piTalk.egg-info/PKG-INFO
+piTalk.egg-info/SOURCES.txt
+piTalk.egg-info/dependency_links.txt
+piTalk.egg-info/top_level.txt
