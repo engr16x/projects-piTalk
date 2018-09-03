@@ -19,14 +19,17 @@ is not okay.
 The library contains the functions described below:
 
 ### sendData( data, showRawData=False):
-Inputs: the data you would like to send, either an individual value or a multi-type n-dimensional list.\n
+Inputs: the data you would like to send, either an individual value or a multi-type n-dimensional list.
+
 Optional: showRawData will print the data of some intermediate steps to help with potential debugging.  Defaults to False.
 
 
 ### sendMap( studentMap):
-Inputs: A student map array that is to be plotted by a corresponding program on the recieving computer.\n
+Inputs: A student map array that is to be plotted by a corresponding program on the recieving computer.
+
 This function is used exclusively with Semester 2 Project 3
 
 ### sendMapFile( studentMap, showRawData=False):
-Inputs: A student map file that is to be plotted by a corresponding program on the recieving computer.\n
+Inputs: A student map file that is to be plotted by a corresponding program on the recieving computer.
+
 This function is used exclusively with Semester 2 Project 3
