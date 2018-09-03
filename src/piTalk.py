@@ -1,6 +1,3 @@
-# Library file on the Pi.
-# Must be in the same directory as any file using it's functions.
-
 import socket 
 import struct
 import time
@@ -10,6 +7,7 @@ from binascii import crc_hqx
 
 class PiTalk():
 
+  # The init function will create the socket connection with the computer
   def __init__(self, host):
     # The packet size of each packet sent can easily be adjusted with this variable
     # This much match the buffer size declared in the program recieving the message
@@ -31,6 +29,7 @@ class PiTalk():
     print('Press [ctrl + C] to stop\n')
     
   
+  # Returns the letter that represents the data type passed to it
   def _getFormat( self, x):
     if (type(x) is int):
       return 'i'
@@ -43,15 +42,19 @@ class PiTalk():
     else:
       return 's'
   
+
   # Takes a multi-dimensional list and flattens it sequentially to a 1D list
   def _flatten( self, array):
     return sum( ([x] if not isinstance(x, list) else self._flatten(x) for x in array), [] )
   
   
+  # Generates the format string, a symbolic representation of the data
+  # based on the data type of teach element
   def _getFmtStr( self, data):
     npy = data
     fmtString = ""
     
+    # If it's a list, must get dimensions then flatten and analyze array
     if ( type(data) is list):
       dim = array(npy).shape
       # Record a space for the number of dimensions
@@ -61,11 +64,13 @@ class PiTalk():
       for i in dim:
         fmtString += 'i'
         
+      # Dimensions have been recorded, can now flatten and analyze the data sequentiall
       d = self._flatten(data)
       prevType  = self._getFormat(d[0])
       count = 1 # Records the number of consecutive occurances of a data type
       first = True
       
+      # Iterate through the data record the data types
       for i in d:
         if (first):
           first = False
@@ -75,10 +80,10 @@ class PiTalk():
           continue
 
         if (self._getFormat(i) == 's'):
-          # if the element is a string, must record the length of the string for this element
+          # if the element is a string, must record the length of the string for this element (already recorded in prev iteration)
           pass
         elif (self._getFormat(i) == prevType):
-          # Sequential data types are counted to reduce the length of the format string for large lists
+          # Sequential data types are counted together to reduce the length of the format string for large lists
           count += 1
           continue
 
@@ -87,6 +92,8 @@ class PiTalk():
 
         # Record the current data format for comparison of the next data
         prevType  = self._getFormat(i)
+
+        # If a string, record the length
         if (prevType == 's'):
           count = len(i)
         else:
@@ -104,16 +111,20 @@ class PiTalk():
 
     return fmtString
   
-    
+  
+  # Uses the format string to determine where to split the data based on packet size
+  # Splits the data into a list with each element as a packet.
+  # Also converts the data into binary format for sending
   def _defineSendPkts( self, formatStr, inpt):
+    # Look-up table for data size
     dataSize = { 'i':4 , 'f':4, 's':1, '?':1 }
     npy = inpt
-    send = bytes()
+    send = bytes() # Defines an empty binary send array
     if (type(inpt) is list):
       inpt = self._flatten(inpt)
     else:
       return [formatStr], [[inpt]], send
-      
+    
     message = []
     format = []
     length = 0
@@ -232,6 +243,7 @@ class PiTalk():
     return format, message, send
 
 
+  # Combines the format defined by _defineSendPkts() and combines and send it
   def _packNsendFormat(self, formatList):
     fmt = ','.join(str(x) for x in formatList)
     
@@ -271,6 +283,7 @@ class PiTalk():
     return fmt
     
   
+  # Takes predefined data packets and sends them to the client
   def _packNsendData( self, dataPkts, send):
     # Iterate through the format/message list. Each element is a packet
     for i in range(len(dataPkts)):
@@ -296,8 +309,9 @@ class PiTalk():
       send = bytes()
     
   
+  # The main function used to send data. Combines all of the above private functions into
+  # one easy to use function.
   def sendData( self, data, showRawData=False):
-  
     try:
       if (showRawData):
         print("\n\nBuffer Size: ", self.buffer, "\nSending: ")
@@ -345,6 +359,7 @@ class PiTalk():
     #    return 0
   
   
+  # Used for sending map arrays in association with Sem 2 Proj 3
   def sendMap( studentMap):
     if not(type(studentMap) is list) and not(type(studentMap[0]) is list):
       print("ERROR: Map must be of 2D list type.")
@@ -358,6 +373,7 @@ class PiTalk():
     sendData( send)
   
   
+  # Used for sending map files in association with Sem 2 Proj 3
   def sendMapFile( studentMap, showRawData=False):
     mapLength = len(studentMap[-1])
     sendMap = []  
