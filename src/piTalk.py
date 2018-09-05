@@ -7,8 +7,13 @@ from binascii import crc_hqx
 
 class PiTalk():
 
-  # The init function will create the socket connection with the computer
   def __init__(self, host):
+    '''
+    Creates a socket connection with the computer so that communication can begin
+
+    Args:
+        host: The IPv4 address of the connection you would like to connect to.
+    '''
     # The packet size of each packet sent can easily be adjusted with this variable
     # This much match the buffer size declared in the program recieving the message
     self.buffer = 1024
@@ -28,9 +33,133 @@ class PiTalk():
     print('\r', '\bConnected to:  ', host)
     print('Press [ctrl + C] to stop\n')
     
+    
+  def sendData( self, data, showRawData=False):
+    '''
+    The main function used to send data by users. Performs all actions needed to send data.
+    (Takes data input, gets the format string, packs, and sends the data)
+
+    Args:
+        data: Data variable/list to be sent
+        showRawData: Optional, will pring intermediate steps for help debutting if necessary
+    Returns:
+        1 if successful
+    '''
+    try:
+      if (showRawData):
+        print("\n\nBuffer Size: ", self.buffer, "\nSending: ")
+        try:
+          [print(r) for r in data]
+        except:
+          print(data)
+          
+      # Find the format string for the given data
+      formatStr = self._getFmtStr( data)
+      # Using the format string, split and define the packets that will be sent
+      formatStr, sendData, begin = self._defineSendPkts( formatStr, data)
+      
+      if (showRawData):
+        print("Final Format: ")
+        [print(f) for f in formatStr]
+        print("Final Message: ")
+        try:
+          [print(m) for m in sendData]
+        except:
+          print(sendData)
+
+      # Encode and send the data
+      self._packNsendFormat( formatStr)
+      self._packNsendData( sendData, begin)
+      return 1
+    
+    except BrokenPipeError:
+      self.userSocket.close()
+      sys.exit('Connection has been lost.')
+    except ConnectionResetError:
+      self.userSocket.close()
+      sys.exit('Connection closed by peer.')
+    except KeyboardInterrupt:
+      self.userSocket.close()
+      sys.exit('User terminated connection during send attempt.')
+    #except packetException:
+    #  print("Resending...")
+    #  self.resendCount += 1
+    #  if (self.resendCount < 10):
+    #    self.sendData( data, showRawData=showRawData)
+    #    self.resendCount = 0
+    #  else:
+    #    print('Connection with client lost.')
+    #    return 0
   
-  # Returns the letter that represents the data type passed to it
+  
+  def sendMap( studentMap):
+    '''
+    Used for sending map arrays in association with Sem 2 Proj 3
+
+    Args:
+        studentMap: List representing map
+    Returns:
+        1 if successful
+        0 if unsuccessful
+    '''
+    if not(type(studentMap) is list) and not(type(studentMap[0]) is list):
+      print("ERROR: Map must be of 2D list type.")
+      return 0
+  
+    send = [zeros(len(studentMap[0])).tolist()]
+    send[0][1] = 'Sample Header - Team_99'
+    for row in studentMap:
+      send.append(row)
+    
+    sendData( send)
+    return 1
+  
+  
+  def sendMapFile( studentMap, showRawData=False):
+    '''
+    Used for sending map files in association with Sem 2 Proj 3
+    Not yet finished and tested, do not use until tested
+
+    Args:
+        studentMap: 
+    Returns:
+        1 if successful
+        0 if unsuccessful
+    '''
+    mapLength = len(studentMap[-1])
+    sendMap = []  
+  
+    for i in range(len(studentMap)):
+      if (i < 6):
+        temp = zeros(mapLength).tolist()
+        temp = [int(t) for t in temp]
+        if (i == 4):
+          try:
+            temp[0] = str(studentMap[i][0] + studentMap[i][1])
+          except:
+            temp[0] = studentMap[i][0]
+        else:
+          temp[0] = studentMap[i][0]
+        sendMap.append(temp)
+      else:
+        if (len(studentMap[i]) != mapLength):
+          print("MAP ERROR: Map data must have rows that are all the same length")
+          return 0
+        sendMap.append(studentMap[i])
+  
+    sendData( sendMap, showSendData=showData)
+    return 1
+
+    
   def _getFormat( self, x):
+    '''
+    Returns the letter that represents the data type passed to it in a format string
+
+    Args:
+        x: The single data point/variable which the format letter is needed
+    Returns:
+        character that represents the data type of the variable in a format string
+    '''
     if (type(x) is int):
       return 'i'
     elif (type(x) is float):
@@ -43,14 +172,28 @@ class PiTalk():
       return 's'
   
 
-  # Takes a multi-dimensional list and flattens it sequentially to a 1D list
   def _flatten( self, array):
+    '''
+    Takes a multi-dimensional list and flattens it sequentially to a 1D list
+
+    Args:
+        array: a multi-dimensional list/array variable
+    Returns:
+        1 dimensional list/array of the same sequential data
+    '''
     return sum( ([x] if not isinstance(x, list) else self._flatten(x) for x in array), [] )
   
   
-  # Generates the format string, a symbolic representation of the data
-  # based on the data type of teach element
   def _getFmtStr( self, data):
+    '''
+    Generates the format string, a symbolic representation of the data
+    based on the data type of each element
+
+    Args:
+        data: a variable or list of data
+    Returns:
+        a string representing the format string of the data, defining data type(s)
+    '''
     npy = data
     fmtString = ""
     
@@ -116,6 +259,19 @@ class PiTalk():
   # Splits the data into a list with each element as a packet.
   # Also converts the data into binary format for sending
   def _defineSendPkts( self, formatStr, inpt):
+    '''
+    Uses the format string to determine where to split the data based on packet size
+    Splits the data into a list with each element as a packet.
+    Also converts the data into binary format for sending
+
+    Args:
+        formatStr: The format string respective to the input data (from _getFmtStr())
+        inpt: The data to be sent
+    Returns:
+        format: format string as a list, with each element representing an individual packet to be sent
+        message: data as a list, with each individual element representing an individual packet to be sent
+        send: byte-array representing the start of the packed binary data to be sent (will already contain dimensions)
+    '''
     # Look-up table for data size
     dataSize = { 'i':4 , 'f':4, 's':1, '?':1 }
     npy = inpt
@@ -237,14 +393,20 @@ class PiTalk():
 
     # finally, append the remaining message and format
     message.append(self._flatten(inpt[dataStart:]))
-    #print('message appended! 4-> ', message)
     format.append(str(formatStr[fmtStart:]))
 
     return format, message, send
 
 
-  # Combines the format defined by _defineSendPkts() and combines and send it
   def _packNsendFormat(self, formatList):
+    '''
+    Combines the format defined by _defineSendPkts() and combines and send it
+
+    Args:
+        formatList: a list variable containing the format string, with each element representing an individual packet to be sent
+    Returns:
+        fmt: format string separated by ',' (not important, but can be used as a reference if needed)
+    '''
     fmt = ','.join(str(x) for x in formatList)
     
     # Change the fmtString to a byte string and pack it
@@ -283,8 +445,14 @@ class PiTalk():
     return fmt
     
   
-  # Takes predefined data packets and sends them to the client
   def _packNsendData( self, dataPkts, send):
+    '''
+    Takes predefined data packets and sends them to the client
+
+    Args:
+        dataPkts: List of data to send, with each element representing and individual packet to be sent
+        send: The begining of the packed binary data to be sent (contains dimensions if a list is sent)
+    '''
     # Iterate through the format/message list. Each element is a packet
     for i in range(len(dataPkts)):
       # Iterate throgh the message (data) to sequentially pack and append it to a byte object to send
@@ -307,97 +475,6 @@ class PiTalk():
       
       # Reset the send varaible to an empty byte object
       send = bytes()
-    
-  
-  # The main function used to send data. Combines all of the above private functions into
-  # one easy to use function.
-  def sendData( self, data, showRawData=False):
-    try:
-      if (showRawData):
-        print("\n\nBuffer Size: ", self.buffer, "\nSending: ")
-        try:
-          [print(r) for r in data]
-        except:
-          print(data)
-          
-      # Find the format string for the given data
-      formatStr = self._getFmtStr( data)
-      # Using the format string, split and define the packets that will be sent
-      formatStr, sendData, begin = self._defineSendPkts( formatStr, data)
-      
-      if (showRawData):
-        print("Final Format: ")
-        [print(f) for f in formatStr]
-        print("Final Message: ")
-        try:
-          [print(m) for m in sendData]
-        except:
-          print(sendData)
-
-      # Encode and send the data
-      self._packNsendFormat( formatStr)
-      self._packNsendData( sendData, begin)
-      return 1
-    
-    except BrokenPipeError:
-      self.userSocket.close()
-      sys.exit('Connection has been lost.')
-    except ConnectionResetError:
-      self.userSocket.close()
-      sys.exit('Connection closed by peer.')
-    except KeyboardInterrupt:
-      self.userSocket.close()
-      sys.exit('User terminated connection during send attempt.')
-    #except packetException:
-    #  print("Resending...")
-    #  self.resendCount += 1
-    #  if (self.resendCount < 10):
-    #    self.sendData( data, showRawData=showRawData)
-    #    self.resendCount = 0
-    #  else:
-    #    print('Connection with client lost.')
-    #    return 0
-  
-  
-  # Used for sending map arrays in association with Sem 2 Proj 3
-  def sendMap( studentMap):
-    if not(type(studentMap) is list) and not(type(studentMap[0]) is list):
-      print("ERROR: Map must be of 2D list type.")
-      return -1
-  
-    send = [zeros(len(studentMap[0])).tolist()]
-    send[0][1] = 'Sample Header - Team_99'
-    for row in studentMap:
-      send.append(row)
-    
-    sendData( send)
-  
-  
-  # Used for sending map files in association with Sem 2 Proj 3
-  def sendMapFile( studentMap, showRawData=False):
-    mapLength = len(studentMap[-1])
-    sendMap = []  
-  
-    for i in range(len(studentMap)):
-      if (i < 6):
-        temp = zeros(mapLength).tolist()
-        temp = [int(t) for t in temp]
-        if (i == 4):
-          try:
-            temp[0] = str(studentMap[i][0] + studentMap[i][1])
-          except:
-            temp[0] = studentMap[i][0]
-        else:
-          temp[0] = studentMap[i][0]
-        sendMap.append(temp)
-      else:
-        if (len(studentMap[i]) != mapLength):
-          print("MAP ERROR: Map data must have rows that are all the same length")
-          return 0
-        sendMap.append(studentMap[i])
-  
-    sendData( sendMap, showSendData=showData)
-    return 1
 
 
 class packetException(Exception):
